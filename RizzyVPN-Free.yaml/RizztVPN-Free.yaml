@@ -1,0 +1,51 @@
+proxies:
+  - name: "🇵🇱 Польша VL"
+    type: vless
+    server: 157.22.241.242
+    port: 443
+    uuid: 6f1c260a-92f7-4c46-9402-1d11293df08d
+    network: tcp
+    tls: true
+    flow: xtls-rprx-vision
+    servername: google.com
+    reality-opts:
+      public-key: qAAT8yYV_znYNn2rHwlFkP7CHuJBjTaaWvOi_lRkAnQ
+      short-id: ecbb088d027e
+    client-fingerprint: firefox
+
+  - name: "🇵🇱 Польша VLx"
+    type: vless
+    server: 157.22.241.242
+    port: 8080
+    uuid: 6f1c260a-92f7-4c46-9402-1d11293df08d
+    network: xhttp
+    xhttp-opts:
+      mode: auto
+      path: "/"
+      extra:
+        scMaxEachPostBytes: 1000000
+        xPaddingBytes: "100-1000"
+    tls: true
+    servername: sun6-21.userapi.com
+    reality-opts:
+      public-key: nW4YXJ3NolpCZHasW3oDxVnz5cuYoL03TmCWymZ8izU
+      short-id: "37"
+    client-fingerprint: firefox
+
+  - name: "🇵🇱 Польша HY2"
+    type: hysteria2
+    server: 157.22.241.242
+    port: 443
+    password: 6qh53mymr7usko5k
+    sni: 157.22.241.242
+    alpn:
+      - h3
+    insecure: false
+
+proxy-groups:
+  - name: "Бесплатный RizzyVPN"
+    type: select
+    proxies:
+      - "🇵🇱 Польша VL"
+      - "🇵🇱 Польша VLx"
+      - "🇵🇱 Польша HY2"
