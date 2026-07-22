@@ -1,0 +1,34 @@
+name: RizzyVPN Auto-Updater
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+
+      - name: Установка Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install requests feedparser beautifulsoup4
+
+      - name: Запуск обновления сабки
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: python3 .github/workflows/update_sabka.py
+
+      - name: Закоммитить изменения
+        run: |
+          git config user.name "RizzyVPN Bot"
+          git config user.email "bot@rizzyvpn.t.me"
+          git add RizzyVPN-Free.txt counter.txt
+          git diff --staged --quiet || git commit -m "Автообновление сабки"
+          git push
