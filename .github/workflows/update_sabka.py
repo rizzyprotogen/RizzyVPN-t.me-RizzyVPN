@@ -298,7 +298,11 @@ def send_telegram(protocols):
 def main():
     try:
         url, entry = get_subscription_url()
-
+        post_info = (
+            entry.get("summary", "")
+            + " "
+            + entry.get("title", "")
+        )
         data = download_subscription(url)
 
         keys = extract_keys(data)
