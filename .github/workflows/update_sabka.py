@@ -206,7 +206,7 @@ def build_subscription(keys):
         new_keys.append(new_key)
 
     return new_keys
-    # =====================
+# =====================
 # СОХРАНЕНИЕ ФАЙЛА
 # =====================
 
@@ -243,17 +243,57 @@ def get_protocols(keys):
         sorted(protocols)
     )
 
+# =====================
+# ЧТЕНИЕ ИНФОРМАЦИИ ИЗ ПОСТА
+# =====================
 
+def parse_post_info(post_info):
+    result = {
+        "title": "🔑 Публичная сабка",
+        "contact": "",
+        "location": "",
+        "limit": ""
+    }
+
+    # первая строка с названием сабки
+    match = re.search(
+        r"(🔑.*?)(?=\n|🌎|По вопросам)",
+        post_info
+    )
+
+    if match:
+        result["title"] = match.group(1).strip()
+
+    # контакт
+    match = re.search(
+        r"По вопросам.*?(?=\n|🌎)",
+        post_info
+    )
+
+    if match:
+        result["contact"] = match.group(0).strip()
+
+    # лимит
+    match = re.search(
+        r"(ℹ️.*)",
+        post_info
+    )
+
+    if match:
+        result["limit"] = match.group(1).strip()
+
+    return result
 # =====================
 # ПУБЛИКАЦИЯ В TELEGRAM
 # =====================
 
 def send_telegram(protocols, post_info):
     log("Создаём пост...")
+    info = parse_post_info(post_info)
 
     text = (
         "<b>Rizzy конфигурация #VPN</b>\n\n"
-        "🔑 Публичная сабка\n\n"
+        f"{info['title']}\n\n"
         f"🌎 Локация: {COUNTRY_NAME}\n"
         f"⚡️ Протоколы: {protocols}\n\n"
         "📎 Сабка:\n\n"
