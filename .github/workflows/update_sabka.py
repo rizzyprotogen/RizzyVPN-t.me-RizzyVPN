@@ -251,19 +251,19 @@ def get_protocols(keys):
 def send_telegram(protocols):
     log("Создаём пост...")
 
-text = (
-    "<b>Rizzy конфигурация #VPN</b>\n\n"
-    "🔑 Публичная сабка\n\n"
-    f"🌎 Локация: {COUNTRY_NAME}\n"
-    f"⚡️ Протоколы: {protocols}\n\n"
-    "📎 Сабка:\n\n"
-    "<code>"
-    "https://raw.githubusercontent.com/"
-    "rizzyprotogen/RizzyVPN-t.me-RizzyVPN/"
-    "main/RizzyVPN-Free.txt"
-    "</code>\n\n"
-    "❤️ Поставь сердечко.\n"
-    "📢 Перешли ключ друзьям."
+    text = (
+        "<b>Rizzy конфигурация #VPN</b>\n\n"
+        "🔑 Публичная сабка\n\n"
+        f"🌎 Локация: {COUNTRY_NAME}\n"
+        f"⚡️ Протоколы: {protocols}\n\n"
+        "📎 Сабка:\n\n"
+        "<code>"
+        "https://raw.githubusercontent.com/"
+        "rizzyprotogen/RizzyVPN-t.me-RizzyVPN/"
+        "main/RizzyVPN-Free.txt"
+        "</code>\n\n"
+        "❤️ Поставь сердечко.\n"
+        "📢 Перешли ключ друзьям."
     )
 
     url = (
