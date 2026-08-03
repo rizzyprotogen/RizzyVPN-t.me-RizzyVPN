@@ -280,7 +280,7 @@ def send_telegram(protocols):
     response = requests.post(
         url,
         json=payload,
-        timeout=20
+        timeout=60
     )
 
     if response.status_code == 200:
