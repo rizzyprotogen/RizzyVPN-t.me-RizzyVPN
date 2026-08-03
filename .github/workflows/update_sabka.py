@@ -3,14 +3,13 @@ import base64
 import os
 import re
 import feedparser
-from bs4 import BeautifulSoup
 from datetime import datetime
 
-# =====================
+=====================
 
-# НАСТРОЙКИ
+НАСТРОЙКИ
 
-# =====================
+=====================
 
 PUB_TOKEN = os.environ["PUB_TOKEN"]
 
@@ -20,6 +19,7 @@ CHANNEL = "@RizzyVPN"
 RSS_FEED_URL = "https://rss.app/feeds/Z1ZlIWdpk8TJRDfs.xml"
 
 COUNTRY_NAME = "Польша"
+
 FLAG_URL = "%F0%9F%87%B5%F0%9F%87%B1"
 
 ANCHOR = (
@@ -27,20 +27,20 @@ ANCHOR = (
 "%20VPN%20%D0%92%20t.me%2FRizzyVPN"
 )
 
-# =====================
+=====================
 
-# ЛОГИ
+ЛОГИ
 
-# =====================
+=====================
 
 def log(text):
 print(f"[RizzyVPN] {text}")
 
-# =====================
+=====================
 
-# ОПРЕДЕЛЕНИЕ ПРОТОКОЛА
+ОПРЕДЕЛЕНИЕ ПРОТОКОЛА
 
-# =====================
+=====================
 
 def detect_proto(key):
 if key.startswith("hysteria2://"):
@@ -51,11 +51,11 @@ if "type=xhttp" in key:
 
 return "VL"
 
-# =====================
+=====================
 
-# СОЗДАНИЕ КОММЕНТАРИЯ
+СОЗДАНИЕ КОММЕНТАРИЯ
 
-# =====================
+=====================
 
 def build_comment(proto):
 date = datetime.now().strftime("%d.%m")
@@ -71,27 +71,27 @@ for i in range(0, len(encoded), 2):
 
 return f"{FLAG_URL}%20{result}"
 
-# =====================
+=====================
 
-# БЕЗОПАСНОЕ ОЧИЩЕНИЕ КЛЮЧА
+БЕЗОПАСНОЕ ОЧИЩЕНИЕ КЛЮЧА
 
-# =====================
+=====================
 
 def clean_key(key):
-# удаляем только старый комментарий
+# удаляем старый комментарий
 if "#" in key:
 key = key.split("#")[0]
 
-# убираем мусорные пробелы  
+# убираем пробелы  
 key = key.strip()  
 
 return key
 
-# =====================
+=====================
 
-# ПОЛУЧЕНИЕ ПОСЛЕДНЕЙ САБКИ
+ПОЛУЧЕНИЕ ССЫЛКИ НА САБКУ
 
-# =====================
+=====================
 
 def get_subscription_url():
 log("Читаем RSS...")
@@ -108,7 +108,6 @@ for entry in feed.entries:
         + entry.get("title", "")  
     )  
 
-    # ищем ссылку на страницу с подпиской  
     match = re.search(  
         r"https?://[^\s\"<>]+",  
         text  
@@ -123,15 +122,14 @@ for entry in feed.entries:
 
 raise Exception("Ссылка на сабку не найдена")
 
-# =====================
+=====================
 
-# СКАЧИВАНИЕ САБКИ
+СКАЧИВАНИЕ САБКИ
 
-# =====================
+=====================
 
 def download_subscription(url):
-
-log("Скачиваем подписку...")  
+log("Скачиваем подписку...")
 
 response = requests.get(  
     url,  
@@ -143,19 +141,18 @@ response.raise_for_status()
 
 return response.text
 
-# =====================
+=====================
 
-# ПОИСК КЛЮЧЕЙ
+ПОИСК КЛЮЧЕЙ
 
-# =====================
+=====================
 
 def extract_keys(data):
-
-log("Ищем ключи...")  
+log("Ищем ключи...")
 
 keys = []  
 
-# прямой поиск  
+# обычная подписка  
 found = re.findall(  
     r"(?:vless|hysteria2)://[^\s#\"<>]+",  
     data  
@@ -163,10 +160,8 @@ found = re.findall(
 
 keys.extend(found)  
 
-
-# если это base64 подписка  
+# если это base64  
 if not keys:  
-
     try:  
         decoded = base64.b64decode(  
             data  
@@ -186,7 +181,7 @@ if not keys:
         pass  
 
 
-# удаляем дубли  
+# убрать дубли  
 keys = list(dict.fromkeys(keys))  
 
 
@@ -200,49 +195,41 @@ log(
     f"Найдено ключей: {len(keys)}"  
 )  
 
-# показываем первые для проверки  
-log(keys[0][:80])  
-
 return keys
 
-# =====================
+=====================
 
-# СОЗДАНИЕ НОВОЙ ПОДПИСКИ
+СОЗДАНИЕ НОВОЙ САБКИ
 
-# =====================
+=====================
 
 def build_subscription(keys):
-
-log("Обрабатываем ключи...")  
+log("Обрабатываем ключи...")
 
 new_keys = []  
 
 for key in keys:  
-
-    # убираем старый комментарий  
     key = clean_key(key)  
 
     proto = detect_proto(key)  
 
     comment = build_comment(proto)  
 
-    # важно: сам vless:// не меняем  
+    # НЕ трогаем vless:// или hysteria2://  
     new_key = key + "#" + comment  
 
     new_keys.append(new_key)  
 
-
 return new_keys
 
-# =====================
+=====================
 
-# СОХРАНЕНИЕ ФАЙЛА
+СОХРАНЕНИЕ ФАЙЛА
 
-# =====================
+=====================
 
 def save_subscription(keys):
-
-log("Сохраняем подписку...")  
+log("Сохраняем подписку...")
 
 content = "\n".join(keys)  
 
@@ -251,23 +238,20 @@ with open(
     "w",  
     encoding="utf-8"  
 ) as f:  
-
     f.write(content)  
-
 
 log(  
     f"Сохранено ключей: {len(keys)}"  
 )
 
-# =====================
+=====================
 
-# ОПРЕДЕЛЕНИЕ ПРОТОКОЛОВ
+ПОЛУЧЕНИЕ ПРОТОКОЛОВ
 
-# =====================
+=====================
 
 def get_protocols(keys):
-
-protocols = set()  
+protocols = set()
 
 for key in keys:  
     protocols.add(  
@@ -278,16 +262,14 @@ return ", ".join(
     sorted(protocols)  
 )
 
-# =====================
+=====================
 
-# ПУБЛИКАЦИЯ В TELEGRAM
+ПУБЛИКАЦИЯ В TELEGRAM
 
-# =====================
+=====================
 
 def send_telegram(protocols):
-
-log("Создаём пост...")  
-
+log("Создаём пост...")
 
 text = (  
     "<b>Rizzy конфигурация #VPN</b>\n\n"  
@@ -303,12 +285,10 @@ text = (
     "❤️ Поддержи проект!"  
 )  
 
-
 url = (  
     f"https://api.telegram.org/"  
     f"bot{PUB_TOKEN}/sendMessage"  
 )  
-
 
 payload = {  
     "chat_id": CHANNEL,  
@@ -317,35 +297,30 @@ payload = {
     "disable_web_page_preview": True  
 }  
 
-
 response = requests.post(  
     url,  
     json=payload,  
     timeout=20  
 )  
 
-
 if response.status_code == 200:  
     log("Пост отправлен ✅")  
-
 else:  
     log(  
         f"Ошибка Telegram: {response.text}"  
     )
 
-# =====================
+=====================
 
-# ЗАПУСК
+ЗАПУСК
 
-# =====================
+=====================
 
 def main():
+try:
+url, entry = get_subscription_url()
 
-try:  
-
-    url, entry = get_subscription_url()  
-
-    data = download_subscription(url)  
+data = download_subscription(url)  
 
     keys = extract_keys(data)  
 
@@ -357,18 +332,14 @@ try:
 
     send_telegram(protocols)  
 
-
     log(  
         "Готово! Обновление завершено 🚀"  
     )  
 
-
 except Exception as e:  
-
     log(  
         f"ОШИБКА: {e}"  
     )  
-
     raise
 
 if name == "main":
