@@ -289,6 +289,7 @@ def parse_post_info(post_info):
 
 def send_telegram(protocols, post_info):
     log("Создаём пост...")
+    post_info = post_info.replace("<br>", "\n")
     info = parse_post_info(post_info)
 
     text = (
