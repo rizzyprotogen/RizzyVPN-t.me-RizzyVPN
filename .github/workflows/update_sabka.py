@@ -15,7 +15,7 @@ PUB_TOKEN = os.environ["PUB_TOKEN"]
 FILE = "RizzyVPN-Free.txt"
 CHANNEL = "@RizzyVPN"
 
-RSS_FEED_URL = "https://rss.app/feeds/Z1ZlIWdpk8TJRDfs.xml"
+RSS_FEED_URL = "https://rss.app/feeds/akOKCzaTuxmRKJgr.xml"
 
 COUNTRY_NAME = "Польша"
 
