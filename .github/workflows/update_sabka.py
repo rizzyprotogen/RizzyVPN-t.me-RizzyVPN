@@ -261,6 +261,7 @@ def send_telegram(protocols):
         "https://raw.githubusercontent.com/"
         "rizzyprotogen/RizzyVPN-t.me-RizzyVPN/"
         "main/RizzyVPN-Free.txt"
+        f"#{ANCHOR}"
         "</code>\n\n"
         "❤️ Поставь сердечко.\n"
         "📢 Перешли ключ друзьям."
