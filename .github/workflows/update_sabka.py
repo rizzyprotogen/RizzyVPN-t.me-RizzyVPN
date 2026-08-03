@@ -248,7 +248,7 @@ def get_protocols(keys):
 # ПУБЛИКАЦИЯ В TELEGRAM
 # =====================
 
-def send_telegram(protocols):
+def send_telegram(protocols, post_info):
     log("Создаём пост...")
 
     text = (
@@ -312,8 +312,7 @@ def main():
         save_subscription(new_keys)
 
         protocols = get_protocols(new_keys)
-
-        send_telegram(protocols)
+        send_telegram(protocols, post_info)
 
         log(
             "Готово! Обновление завершено 🚀"
