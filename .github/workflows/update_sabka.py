@@ -100,15 +100,13 @@ def get_subscription_url():
             + entry.get("title", "")
         )
 
-        match = re.search(
+        links = re.findall(
             r"https?://[^\s\"<>]+",
             text
         )
 
-        if match:
-            url = match.group(0)
-
-            if "kvn" in url.lower():
+        for url in links:
+            if "sb.embrofree.org" in url.lower():
                 log(f"Найдена сабка: {url}")
                 return url, entry
 
