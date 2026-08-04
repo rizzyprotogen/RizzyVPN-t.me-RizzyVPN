@@ -239,12 +239,12 @@ def get_protocols(keys):
 # =====================
 
 def parse_post_info(post_info):
-    result = {
+        result = {
         "title": "🔑 Публичная сабка",
         "contact": "",
         "location": "",
         "limit": ""
-}
+    }
 
     post_info = re.sub(
         r"<br\s*/?>",
@@ -275,16 +275,16 @@ def parse_post_info(post_info):
         post_info
     )
 
-    if match:
-        contact = match.group(0).strip()
+        if match:
+            contact = match.group(0).strip()
 
             contact = re.sub(
-        r"\[@\w+\]\(https?://[^)]+\)",
-            "@RizzyVPN",
-        contact
-    )
+            r"\[@\w+\]\(https?://[^)]+\)",
+                "@RizzyVPN",
+                contact
+            )
 
-        result["contact"] = contact
+            result["contact"] = contact
 
 
 # локация
