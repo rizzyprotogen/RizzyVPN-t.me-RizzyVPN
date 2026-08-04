@@ -262,7 +262,12 @@ def parse_post_info(post_info):
     )
 
     if match:
-        result["title"] = match.group(1).strip()
+        title = match.group(1).strip()
+
+    # убираем старый номер сабки (#229)
+        title = re.sub(r"\s*#\d+", "", title)
+
+        result["title"] = title.strip()
 
     # контакт
     match = re.search(
