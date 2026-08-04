@@ -41,6 +41,7 @@ def log(text):
 # =====================
 
 def detect_proto(key):
+
     if key.startswith("hysteria2://"):
         return "HY2"
 
@@ -55,6 +56,7 @@ def detect_proto(key):
 # =====================
 
 def build_comment(proto):
+
     date = datetime.now().strftime("%d.%m")
 
     text = f"{proto} | RizzyVPN до {date}"
@@ -67,13 +69,12 @@ def build_comment(proto):
         result += "%" + encoded[i:i+2]
 
     return f"{FLAG_URL}%20{result}"
-
-
-# =====================
+    # =====================
 # БЕЗОПАСНОЕ ОЧИЩЕНИЕ КЛЮЧА
 # =====================
 
 def clean_key(key):
+
     if "#" in key:
         key = key.split("#")[0]
 
@@ -85,6 +86,7 @@ def clean_key(key):
 # =====================
 
 def get_subscription_url():
+
     log("Читаем RSS...")
 
     feed = feedparser.parse(RSS_FEED_URL)
@@ -93,6 +95,7 @@ def get_subscription_url():
         raise Exception("RSS пустой")
 
     for entry in feed.entries:
+
         text = (
             entry.get("summary", "")
             + " "
@@ -105,8 +108,11 @@ def get_subscription_url():
         )
 
         for url in links:
+
             if "sb.embrofree.org" in url.lower():
+
                 log(f"Найдена сабка: {url}")
+
                 return url, entry
 
     raise Exception("Ссылка на сабку не найдена")
@@ -117,6 +123,7 @@ def get_subscription_url():
 # =====================
 
 def download_subscription(url):
+
     log("Скачиваем подписку...")
 
     response = requests.get(
@@ -135,6 +142,7 @@ def download_subscription(url):
 # =====================
 
 def extract_keys(data):
+
     log("Ищем ключи...")
 
     keys = []
@@ -146,8 +154,11 @@ def extract_keys(data):
 
     keys.extend(found)
 
+
     if not keys:
+
         try:
+
             decoded = base64.b64decode(
                 data
             ).decode(
@@ -165,24 +176,33 @@ def extract_keys(data):
         except Exception:
             pass
 
+
     keys = list(dict.fromkeys(keys))
+
 
     if not keys:
         raise Exception("Ключи не найдены")
 
-    log(f"Найдено ключей: {len(keys)}")
+
+    log(
+        f"Найдено ключей: {len(keys)}"
+    )
 
     return keys
-  # =====================
+
+
+# =====================
 # СОЗДАНИЕ НОВОЙ САБКИ
 # =====================
 
 def build_subscription(keys):
+
     log("Обрабатываем ключи...")
 
     new_keys = []
 
     for key in keys:
+
         key = clean_key(key)
 
         proto = detect_proto(key)
@@ -193,14 +213,14 @@ def build_subscription(keys):
 
         new_keys.append(new_key)
 
+
     return new_keys
-
-
-# =====================
+    # =====================
 # СОХРАНЕНИЕ ФАЙЛА
 # =====================
 
 def save_subscription(keys):
+
     log("Сохраняем подписку...")
 
     content = "\n".join(keys)
@@ -222,6 +242,7 @@ def save_subscription(keys):
 # =====================
 
 def get_protocols(keys):
+
     protocols = set()
 
     for key in keys:
@@ -239,12 +260,14 @@ def get_protocols(keys):
 # =====================
 
 def parse_post_info(post_info):
-        result = {
+
+    result = {
         "title": "🔑 Публичная сабка",
         "contact": "",
         "location": "",
         "limit": ""
     }
+
 
     post_info = re.sub(
         r"<br\s*/?>",
@@ -252,12 +275,16 @@ def parse_post_info(post_info):
         post_info
     )
 
+
+    # название
+
     match = re.search(
         r"(🔑.*?)(?=\n|🌎|По вопросам)",
         post_info
     )
 
     if match:
+
         title = match.group(1).strip()
 
         title = re.sub(
@@ -269,154 +296,250 @@ def parse_post_info(post_info):
         result["title"] = title.strip()
 
 
+
     # контакт
+
     match = re.search(
         r"По вопросам.*?(?=\n|🌎|$)",
         post_info
     )
 
-        if match:
-            contact = match.group(0).strip()
+    if match:
 
-            contact = re.sub(
+        contact = match.group(0).strip()
+
+        contact = re.sub(
             r"\[@\w+\]\(https?://[^)]+\)",
-                "@RizzyVPN",
-                contact
-            )
+            "@RizzyVPN",
+            contact
+        )
 
-            result["contact"] = contact
+        result["contact"] = contact
 
 
-# локация
+
+    # локация
+
     match = re.search(
         r"🌎\s*Локация:\s*(.*?)(?=\n|⚡️|$)",
         post_info
     )
 
     if match:
+
         result["location"] = match.group(1).strip()
 
 
-# лимит
+
+    # лимит
+
     match = re.search(
         r"(ℹ️.*)",
         post_info
     )
 
     if match:
+
         result["limit"] = match.group(1).strip()
 
 
+
     return result
-
-
-# =====================
+    # =====================
 # СЧЁТЧИК ПОСТОВ
 # =====================
 
 def get_post_number():
-    with open(COUNTER_FILE, "r") as f:
-        return int(f.read().strip())
+
+    with open(
+        COUNTER_FILE,
+        "r"
+    ) as f:
+
+        return int(
+            f.read().strip()
+        )
 
 
 def save_post_number(number):
-    with open(COUNTER_FILE, "w") as f:
-        f.write(str(number))
-      # =====================
+
+    with open(
+        COUNTER_FILE,
+        "w"
+    ) as f:
+
+        f.write(
+            str(number)
+        )
+
+
+# =====================
 # ПУБЛИКАЦИЯ В TELEGRAM
 # =====================
 
 def send_telegram(protocols, post_info):
+
     log("Создаём пост...")
+
 
     info = parse_post_info(post_info)
 
+
     post_number = get_post_number() + 1
+
 
     extra_info = ""
 
+
     if info["contact"]:
-        extra_info += f"{info['contact']}\n\n"
+
+        extra_info += (
+            f"{info['contact']}\n\n"
+        )
+
 
     if info["limit"]:
-        extra_info += f"{info['limit']}\n\n"
+
+        extra_info += (
+            f"{info['limit']}\n\n"
+        )
 
 
     text = (
+
         "<b>Rizzy конфигурация #VPN</b>\n\n"
+
         f"{info['title']} #{post_number}\n\n"
+
         f"{extra_info}"
-        f"🌎 Локация: {info.get('location') or COUNTRY_NAME}\n"
+
+        f"🌎 Локация: "
+        f"{info.get('location') or COUNTRY_NAME}\n"
+
         f"⚡️ Протоколы: {protocols}\n\n"
+
+
         "📎 Сабка:\n\n"
+
         "<code>"
         "https://raw.githubusercontent.com/"
         "rizzyprotogen/RizzyVPN-t.me-RizzyVPN/"
         "main/RizzyVPN-Free.txt"
         f"#{ANCHOR}"
         "</code>\n\n"
+
+
         "❤️ Поставь сердечко.\n"
         "📢 Перешли ключ друзьям."
+
     )
 
 
     url = (
-        f"https://api.telegram.org/"
+
+        "https://api.telegram.org/"
         f"bot{PUB_TOKEN}/sendMessage"
+
     )
 
 
     payload = {
+
         "chat_id": CHANNEL,
+
         "text": text,
+
         "parse_mode": "HTML",
+
         "disable_web_page_preview": True
+
     }
 
 
     response = requests.post(
+
         url,
+
         json=payload,
+
         timeout=60
+
     )
 
 
     if response.status_code == 200:
+
         save_post_number(post_number)
+
         log("Пост отправлен ✅")
 
+
     else:
+
         log(
             f"Ошибка Telegram: {response.text}"
         )
-      # =====================
+       # =====================
+# ПРОВЕРКА ФАЙЛОВ
+# =====================
+
+def create_counter():
+
+    if not os.path.exists(COUNTER_FILE):
+
+        with open(
+            COUNTER_FILE,
+            "w"
+        ) as f:
+
+            f.write("0")
+
+
+# =====================
 # ЗАПУСК
 # =====================
 
 def main():
+
     try:
+
+        create_counter()
+
+
         url, entry = get_subscription_url()
 
+
         post_info = (
+
             entry.get("summary", "")
+
             + " "
+
             + entry.get("title", "")
+
         )
+
 
         data = download_subscription(url)
 
+
         keys = extract_keys(data)
+
 
         new_keys = build_subscription(keys)
 
+
         save_subscription(new_keys)
 
+
         protocols = get_protocols(new_keys)
+
 
         send_telegram(
             protocols,
             post_info
         )
+
 
         log(
             "Готово! Обновление завершено 🚀"
@@ -424,27 +547,15 @@ def main():
 
 
     except Exception as e:
+
         log(
             f"ОШИБКА: {e}"
         )
+
         raise
 
 
 
 if __name__ == "__main__":
-    main()
-  # =====================
-# ПРОВЕРКА ФАЙЛОВ
-# =====================
 
-def create_counter():
-    if not os.path.exists(COUNTER_FILE):
-        with open(COUNTER_FILE, "w") as f:
-            f.write("0")
-
-
-# =====================
-# ПОДГОТОВКА
-# =====================
-
-create_counter()
+    main() 
