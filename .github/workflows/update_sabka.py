@@ -14,6 +14,7 @@ PUB_TOKEN = os.environ["PUB_TOKEN"]
 
 FILE = "RizzyVPN-Free.txt"
 CHANNEL = "@RizzyVPN"
+COUNTER_FILE = "counter.txt"
 
 RSS_FEED_URL = "https://rss.app/feeds/akOKCzaTuxmRKJgr.xml"
 
@@ -269,6 +270,8 @@ def parse_post_info(post_info):
 
         result["title"] = title.strip()
 
+        result["title"] = title.strip()
+
     # контакт
     match = re.search(
         r"По вопросам.*?(?=\n|🌎)",
@@ -290,15 +293,13 @@ def parse_post_info(post_info):
     return result
     
 def get_post_number():
-    with open("counter.txt", "r") as f:
-        number = int(f.read().strip())
+    with open(COUNTER_FILE, "r") as f:
+        return int(f.read().strip())
 
-    number += 1
 
-    with open("counter.txt", "w") as f:
+def save_post_number(number):
+    with open(COUNTER_FILE, "w") as f:
         f.write(str(number))
-
-    return number
 # =====================
 # ПУБЛИКАЦИЯ В TELEGRAM
 # =====================
@@ -307,7 +308,7 @@ def send_telegram(protocols, post_info):
     log("Создаём пост...")
     post_info = re.sub(r"<br\s*/?>", "\n", post_info)
     info = parse_post_info(post_info)
-    post_number = get_post_number()
+    post_number = get_post_number() + 1
 
     text = (
         "<b>Rizzy конфигурация #VPN</b>\n\n"
@@ -344,6 +345,7 @@ def send_telegram(protocols, post_info):
     )
 
     if response.status_code == 200:
+        save_post_number(post_number)
         log("Пост отправлен ✅")
     else:
         log(
