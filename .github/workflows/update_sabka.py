@@ -283,6 +283,17 @@ def parse_post_info(post_info):
         result["limit"] = match.group(1).strip()
 
     return result
+    
+def get_post_number():
+    with open("counter.txt", "r") as f:
+        number = int(f.read().strip())
+
+    number += 1
+
+    with open("counter.txt", "w") as f:
+        f.write(str(number))
+
+    return number
 # =====================
 # ПУБЛИКАЦИЯ В TELEGRAM
 # =====================
@@ -291,10 +302,11 @@ def send_telegram(protocols, post_info):
     log("Создаём пост...")
     post_info = re.sub(r"<br\s*/?>", "\n", post_info)
     info = parse_post_info(post_info)
+    post_number = get_post_number()
 
     text = (
         "<b>Rizzy конфигурация #VPN</b>\n\n"
-        f"{info['title']}\n\n"
+        f"{info['title']} #{post_number}\n\n"
         f"🌎 Локация: {COUNTRY_NAME}\n"
         f"⚡️ Протоколы: {protocols}\n\n"
         "📎 Сабка:\n\n"
