@@ -321,19 +321,17 @@ def parse_post_info(post_info):
     # локация
 
     match = re.search(
-        r"🌎\s*Локация:\s*(.*?)(?=\n|⚡️|$)",
-        post_info
-    )
+    r"🌎\s*(?:\S+\s+)?(.+?)(?=\s+с протоколами|\n|$)",
+    post_info
+)
 
     if match:
-
-        result["location"] = match.group(1).strip()
-
+            result["location"] = match.group(1).strip()
 
 
     # лимит
 
-    match = re.search(
+        match = re.search(
         r"(ℹ️.*)",
         post_info
     )
