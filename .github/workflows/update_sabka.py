@@ -242,8 +242,9 @@ def parse_post_info(post_info):
     result = {
         "title": "🔑 Публичная сабка",
         "contact": "",
+        "location": "",
         "limit": ""
-    }
+}
 
     post_info = re.sub(
         r"<br\s*/?>",
@@ -268,15 +269,35 @@ def parse_post_info(post_info):
         result["title"] = title.strip()
 
 
+    # контакт
     match = re.search(
-        r"По вопросам.*?(?=\n|🌎)",
+        r"По вопросам.*?(?=\n|🌎|$)",
         post_info
     )
 
     if match:
-        result["contact"] = match.group(0).strip()
+        contact = match.group(0).strip()
+
+            contact = re.sub(
+        r"\[@\w+\]\(https?://[^)]+\)",
+            "@RizzyVPN",
+        contact
+    )
+
+        result["contact"] = contact
 
 
+# локация
+    match = re.search(
+        r"🌎\s*Локация:\s*(.*?)(?=\n|⚡️|$)",
+        post_info
+    )
+
+    if match:
+        result["location"] = match.group(1).strip()
+
+
+# лимит
     match = re.search(
         r"(ℹ️.*)",
         post_info
@@ -325,7 +346,7 @@ def send_telegram(protocols, post_info):
         "<b>Rizzy конфигурация #VPN</b>\n\n"
         f"{info['title']} #{post_number}\n\n"
         f"{extra_info}"
-        f"🌎 Локация: {COUNTRY_NAME}\n"
+        f"🌎 Локация: {info.get('location') or COUNTRY_NAME}\n"
         f"⚡️ Протоколы: {protocols}\n\n"
         "📎 Сабка:\n\n"
         "<code>"
