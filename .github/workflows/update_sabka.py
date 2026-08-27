@@ -1,10 +1,10 @@
-# RizzyVPN Auto - СТИЛЬ RIZZY
+# RizzyVPN Auto - СВЕЖАЯ САБКА (ПАРСИНГ + RSS FALLBACK)
 import requests
 import base64
 import os
 import re
 import feedparser
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # =====================
 # НАСТРОЙКИ
@@ -20,8 +20,11 @@ FILE = "RizzyVPN-Free.txt"
 CHANNEL = "@RizzyVPN"
 COUNTER_FILE = "counter.txt"
 
+# Для парсинга t.me/s/freekvn (берём СВЕЖИЙ пост)
+TELEGRAM_WEB_URL = "https://t.me/s/freekvn"
+
+# RSSHub как запасной вариант
 RSS_FEED_URL = "https://rsshub.app/telegram/channel/freekvn"
-FALLBACK_URL = "https://t.me/s/freekvn"
 
 COUNTRY_NAME = "Польша"
 FLAG_URL = "%F0%9F%87%B5%F0%9F%87%B1"
@@ -67,10 +70,27 @@ def clean_key(key):
     return key.strip()
 
 # =====================
-# ПОЛУЧЕНИЕ ССЫЛКИ НА САБКУ
+# ПОЛУЧЕНИЕ ССЫЛКИ НА САБКУ (СВЕЖАЯ)
 # =====================
 
 def get_subscription_url():
+    # 1️⃣ Парсим t.me/s/freekvn (берём ПОСЛЕДНЮЮ ссылку = свежую)
+    log("Парсим свежий пост из t.me/s/freekvn...")
+    try:
+        html = requests.get(TELEGRAM_WEB_URL, timeout=30).text
+        
+        # Ищем ВСЕ ссылки на сабки
+        all_matches = re.findall(r'https?://sb\.embrofree\.org[^\s"<>]+', html)
+        
+        if all_matches:
+            # Берём ПОСЛЕДНЮЮ ссылку (она самая свежая)
+            url = all_matches[-1]
+            log(f"✅ Найдена свежая сабка через парсинг: {url}")
+            return url, None
+    except Exception as e:
+        log(f"⚠️ Ошибка парсинга: {e}")
+
+    # 2️⃣ Запасной вариант: RSSHub
     log("Пробуем RSSHub...")
     try:
         feed = feedparser.parse(RSS_FEED_URL)
@@ -85,17 +105,7 @@ def get_subscription_url():
     except Exception as e:
         log(f"⚠️ RSSHub не работает: {e}")
 
-    log("Пробуем парсинг t.me/s/freekvn...")
-    try:
-        html = requests.get(FALLBACK_URL, timeout=30).text
-        match = re.search(r'https?://sb\.embrofree\.org[^\s"<>]+', html)
-        if match:
-            url = match.group(0)
-            log(f"✅ Найдена сабка через парсинг: {url}")
-            return url, None
-    except Exception as e:
-        log(f"⚠️ Парсинг не удался: {e}")
-
+    # 3️⃣ Всё сломалось
     raise Exception("Не удалось получить ссылку на сабку")
 
 # =====================
@@ -220,6 +230,26 @@ def generate_feed(keys):
         log(f"⚠️ Ошибка генерации feed.xml: {e}")
 
 # =====================
+# ОТПРАВКА В TELEGRAM
+# =====================
+
+def send_post(text):
+    log("Отправляем пост...")
+    url = f"https://api.telegram.org/bot{PUB_TOKEN}/sendMessage"
+    data = {
+        "chat_id": CHANNEL,
+        "text": text,
+        "disable_web_page_preview": True
+    }
+    try:
+        response = requests.post(url, data=data, timeout=30)
+        response.raise_for_status()
+        log("Пост отправлен")
+    except Exception as e:
+        log(f"Ошибка отправки: {e}")
+        raise
+
+# =====================
 # ГЛАВНАЯ ФУНКЦИЯ
 # =====================
 
@@ -227,23 +257,25 @@ def main():
     log("=== RizzyVPN Auto Start ===")
     
     try:
+        # 1. Получаем свежую сабку
         url, entry = get_subscription_url()
+        
+        # 2. Скачиваем и обрабатываем
         raw = download_subscription(url)
         keys = extract_keys(raw)
         new_keys = build_subscription(keys)
         save_subscription(new_keys)
         generate_feed(new_keys)
         
-        # ========================================
-        # ПОСТ В СТИЛЕ RIZZY (ТВОЙ ВАРИАНТ)
-        # ========================================
+        # 3. Собираем пост
         number = get_post_number() + 1
         protocols = get_protocols(new_keys)
+        future_date = (datetime.now() + timedelta(days=30)).strftime("%d.%m")
         
         text = f"""
 Rizzy конфигурация #VPN
 
-🔑Публичная сабка до 7.08, либо до исчерпания трафика. #{number}
+🔑Публичная сабка до {future_date}, либо до исчерпания трафика. #{number}
 
 По вопросам писать @EmbroKVN. Помогаю бесплатно!
 
@@ -262,26 +294,6 @@ https://raw.githubusercontent.com/rizzyprotogen/RizzyVPN-t.me-RizzyVPN/main/Rizz
         log("=== Готово ===")
     except Exception as e:
         log(f"КРИТИЧЕСКАЯ ОШИБКА: {e}")
-        raise
-
-# =====================
-# ОТПРАВКА В TELEGRAM
-# =====================
-
-def send_post(text):
-    log("Отправляем пост...")
-    url = f"https://api.telegram.org/bot{PUB_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHANNEL,
-        "text": text,
-        "disable_web_page_preview": True
-    }
-    try:
-        response = requests.post(url, data=data, timeout=30)
-        response.raise_for_status()
-        log("Пост отправлен")
-    except Exception as e:
-        log(f"Ошибка отправки: {e}")
         raise
 
 # =====================
