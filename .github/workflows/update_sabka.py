@@ -1,160 +1,348 @@
-import requests, base64, json, os, re, feedparser
-from bs4 import BeautifulSoup
+import requests
+import base64
+import os
+import re
+import feedparser
+from datetime import datetime
 
-TOKEN = os.environ['GH_TOKEN']
-PUB_TOKEN = os.environ['PUB_TOKEN']
-FILE = 'RizzyVPN-Free.txt'
-CHANNEL = '@RizzyVPN'
-RSS_FEED_URL = 'https://raw.githubusercontent.com/rizzyprotogen/RizzyVPN-t.me-RizzyVPN/main/feed.xml'
-COUNTER_FILE = 'counter.txt'
-ANCHOR = '%D0%91%D0%95%D0%A1%D0%9F%D0%9B%D0%90%D0%A2%D0%9D%D0%AB%D0%99%20VPN%20%D0%92%20t.me%2FRizzyVPN'
-COUNTRY_NAME = 'Польша'
-FLAG_URL = '%F0%9F%87%B5%F0%9F%87%B1'
+# =====================
+# НАСТРОЙКИ
+# =====================
 
+PUB_TOKEN = os.environ.get("PUB_TOKEN", "")
+
+if not PUB_TOKEN:
+    print("[RizzyVPN] ОШИБКА: PUB_TOKEN не найден в переменных окружения!")
+    exit(1)
+
+FILE = "RizzyVPN-Free.txt"
+CHANNEL = "@RizzyVPN"
+COUNTER_FILE = "counter.txt"
+
+# RSSHub + запасной парсинг
+RSS_FEED_URL = "https://rsshub.app/telegram/channel/freekvn"
+FALLBACK_URL = "https://t.me/s/freekvn"
+
+COUNTRY_NAME = "Польша"
+FLAG_URL = "%F0%9F%87%B5%F0%9F%87%B1"
+
+# =====================
+# ЛОГИ
+# =====================
+
+def log(text):
+    print(f"[RizzyVPN] {text}")
+
+# =====================
+# ОПРЕДЕЛЕНИЕ ПРОТОКОЛА
+# =====================
 
 def detect_proto(key):
-    if key.startswith('hysteria2://'):
-        return 'HY2'
-    if 'type=xhttp' in key or 'xhttp' in key.split('&'):
-        return 'VLx'
-    return 'VL'
+    if key.startswith("hysteria2://"):
+        return "HY2"
+    if "type=xhttp" in key:
+        return "VLx"
+    return "VL"
 
+# =====================
+# СОЗДАНИЕ КОММЕНТАРИЯ
+# =====================
 
-def build_rizzy_comment(proto, date):
-    comment_text = f'{proto} | RizzyVPN до {date}'
-    comment_encoded = comment_text.encode().hex().upper()
-    comment_url = ''.join(f'%{comment_encoded[i:i+2]}' for i in range(0, len(comment_encoded), 2))
-    return f'{FLAG_URL}%20{comment_url}'
+def build_comment(proto):
+    date = datetime.now().strftime("%d.%m")
+    text = f"{proto} | RizzyVPN до {date}"
+    encoded = text.encode("utf-8").hex().upper()
+    result = ""
+    for i in range(0, len(encoded), 2):
+        result += "%" + encoded[i:i+2]
+    return f"{FLAG_URL}%20{result}"
 
+# =====================
+# ОЧИСТКА КЛЮЧА
+# =====================
 
-def get_next_issue():
-    if os.path.exists(COUNTER_FILE):
-        with open(COUNTER_FILE) as f:
-            last = f.read().strip()
-        next_issue = int(last) + 1 if last.isdigit() else 1
-    else:
-        next_issue = 1
-    with open(COUNTER_FILE, 'w') as f:
-        f.write(str(next_issue))
-    return next_issue
+def clean_key(key):
+    if "#" in key:
+        key = key.split("#")[0]
+    return key.strip()
 
+# =====================
+# ПОЛУЧЕНИЕ ССЫЛКИ НА САБКУ
+# =====================
+
+def get_subscription_url():
+    # 1️⃣ Пробуем RSSHub
+    log("Пробуем RSSHub...")
+    try:
+        feed = feedparser.parse(RSS_FEED_URL)
+        if feed.entries:
+            for entry in feed.entries[:1]:  # Берём последний пост
+                text = entry.get("summary", "") + " " + entry.get("title", "")
+                links = re.findall(r"https?://[^\s\"<>]+", text)
+                for url in links:
+                    if "sb.embrofree.org" in url.lower():
+                        log(f"✅ Найдена сабка через RSSHub: {url}")
+                        return url, entry
+    except Exception as e:
+        log(f"⚠️ RSSHub не работает: {e}")
+
+    # 2️⃣ Запасной вариант: парсим t.me/s/freekvn
+    log("Пробуем парсинг t.me/s/freekvn...")
+    try:
+        html = requests.get(FALLBACK_URL, timeout=30).text
+        match = re.search(r'https?://sb\.embrofree\.org[^\s"<>]+', html)
+        if match:
+            url = match.group(0)
+            log(f"✅ Найдена сабка через парсинг: {url}")
+            return url, None
+    except Exception as e:
+        log(f"⚠️ Парсинг не удался: {e}")
+
+    # 3️⃣ Всё сломалось
+    raise Exception("Не удалось получить ссылку на сабку")
+
+# =====================
+# СКАЧИВАНИЕ САБКИ
+# =====================
+
+def download_subscription(url):
+    log("Скачиваем подписку...")
+    try:
+        response = requests.get(url, timeout=30, verify=False)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        log(f"Ошибка скачивания: {e}")
+        raise
+
+# =====================
+# ПОИСК VPN КЛЮЧЕЙ
+# =====================
+
+def extract_keys(data):
+    log("Ищем ключи...")
+    keys = []
+    
+    found = re.findall(r"(?:vless|hysteria2)://[^\s#\"<>]+", data)
+    keys.extend(found)
+    
+    if not keys:
+        try:
+            decoded = base64.b64decode(data).decode("utf-8", errors="ignore")
+            found = re.findall(r"(?:vless|hysteria2)://[^\s#\"<>]+", decoded)
+            keys.extend(found)
+        except Exception as e:
+            log(f"Ошибка декодирования base64: {e}")
+    
+    keys = list(dict.fromkeys(keys))
+    
+    if not keys:
+        raise Exception("Ключи не найдены")
+    
+    log(f"Найдено ключей: {len(keys)}")
+    return keys
+
+# =====================
+# СОЗДАНИЕ НОВОЙ САБКИ
+# =====================
+
+def build_subscription(keys):
+    log("Обрабатываем ключи...")
+    new_keys = []
+    for key in keys:
+        key = clean_key(key)
+        proto = detect_proto(key)
+        comment = build_comment(proto)
+        new_key = key + "#" + comment
+        new_keys.append(new_key)
+    return new_keys
+
+# =====================
+# СОХРАНЕНИЕ ФАЙЛА
+# =====================
+
+def save_subscription(keys):
+    log("Сохраняем подписку...")
+    content = "\n".join(keys)
+    with open(FILE, "w", encoding="utf-8") as f:
+        f.write(content)
+    log(f"Сохранено ключей: {len(keys)}")
+
+# =====================
+# ПОЛУЧЕНИЕ ПРОТОКОЛОВ
+# =====================
+
+def get_protocols(keys):
+    protocols = set()
+    for key in keys:
+        protocols.add(detect_proto(key))
+    return ", ".join(sorted(protocols))
+
+# =====================
+# ЧТЕНИЕ ИНФОРМАЦИИ ИЗ ПОСТА
+# =====================
+
+def parse_post_info(post_info):
+    result = {
+        "title": "🔑 Публичная сабка",
+        "contact": "",
+        "location": "",
+        "limit": ""
+    }
+    
+    post_info = re.sub(r"<br\s*/?>", "\n", post_info)
+    
+    match = re.search(r"(🔑.*?)(?=\n|🌎|По вопросам)", post_info)
+    if match:
+        title = match.group(1).strip()
+        title = re.sub(r"\s*#\d+", "", title)
+        result["title"] = title
+    
+    match = re.search(r"По вопросам.*?(?=\n|🌎|$)", post_info)
+    if match:
+        contact = match.group(0).strip()
+        contact = re.sub(r"@\w+https?://[^)]+", "@RizzyVPN", contact)
+        result["contact"] = contact
+    
+    match = re.search(r"🌎\s*(?:\S+\s+)?(.+?)(?=\s+с протоколами|\n|$)", post_info)
+    if match:
+        result["location"] = match.group(1).strip()
+    
+    match = re.search(r"Общий лимит.*?(?=\n|$)", post_info)
+    if match:
+        result["limit"] = match.group(0).strip()
+    
+    return result
+
+# =====================
+# СЧЁТЧИК ПОСТОВ
+# =====================
+
+def get_post_number():
+    if not os.path.exists(COUNTER_FILE):
+        return 0
+    try:
+        with open(COUNTER_FILE, "r") as f:
+            return int(f.read().strip())
+    except:
+        return 0
+
+def save_post_number(number):
+    with open(COUNTER_FILE, "w") as f:
+        f.write(str(number))
+
+# =====================
+# СОЗДАНИЕ ПОСТА
+# =====================
+
+def build_post(info, keys):
+    number = get_post_number() + 1
+    protocols = get_protocols(keys)
+    
+    text = f"""
+{info["title"]}
+
+🌎 {info["location"]}
+
+🇵🇱 Страна: {COUNTRY_NAME}
+
+⚡ Протоколы: {protocols}
+
+📦 Серверов: {len(keys)}
+
+{info["limit"]}
+
+{info["contact"]}
+
+📅 Обновлено: {datetime.now().strftime("%d.%m.%Y")}
+
+⬇️ Скачать VPN:
+https://t.me/{CHANNEL.replace("@", "")}
+
+#{number}
+"""
+    return text.strip(), number
+
+# =====================
+# ОТПРАВКА В TELEGRAM
+# =====================
+
+def send_post(text):
+    log("Отправляем пост...")
+    url = f"https://api.telegram.org/bot{PUB_TOKEN}/sendMessage"
+    data = {
+        "chat_id": CHANNEL,
+        "text": text,
+        "disable_web_page_preview": True
+    }
+    try:
+        response = requests.post(url, data=data, timeout=30)
+        response.raise_for_status()
+        log("Пост отправлен")
+    except Exception as e:
+        log(f"Ошибка отправки: {e}")
+        raise
+
+# =====================
+# ГЕНЕРАЦИЯ RSS ФИДА (feed.xml)
+# =====================
+
+def generate_feed(keys):
+    log("Генерируем feed.xml...")
+    try:
+        import xml.etree.ElementTree as ET
+        
+        rss = ET.Element("rss", version="2.0")
+        channel = ET.SubElement(rss, "channel")
+        
+        ET.SubElement(channel, "title").text = "RizzyVPN Free"
+        ET.SubElement(channel, "link").text = "https://t.me/RizzyVPN"
+        ET.SubElement(channel, "description").text = "Бесплатные VPN-ключи"
+        
+        item = ET.SubElement(channel, "item")
+        ET.SubElement(item, "title").text = f"VPN Keys {datetime.now().strftime('%d.%m.%Y')}"
+        ET.SubElement(item, "description").text = "\n".join(keys[:10])
+        ET.SubElement(item, "pubDate").text = datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0000")
+        
+        tree = ET.ElementTree(rss)
+        tree.write("feed.xml", encoding="utf-8", xml_declaration=True)
+        log("✅ feed.xml обновлён")
+    except Exception as e:
+        log(f"⚠️ Ошибка генерации feed.xml: {e}")
+
+# =====================
+# ГЛАВНАЯ ФУНКЦИЯ
+# =====================
 
 def main():
-    # 1. Получаем RSS
-    feed = feedparser.parse(RSS_FEED_URL)
-    if not feed.entries:
-        print('❌ Нет записей в RSS.')
-        return
+    log("=== RizzyVPN Auto Start ===")
+    
+    try:
+        url, entry = get_subscription_url()
+        raw = download_subscription(url)
+        keys = extract_keys(raw)
+        new_keys = build_subscription(keys)
+        save_subscription(new_keys)
+        generate_feed(new_keys)  # <-- Обновляем feed.xml
+        
+        if entry:
+            post_info = entry.get("summary", "") + "\n" + entry.get("title", "")
+        else:
+            post_info = ""
+        
+        info = parse_post_info(post_info)
+        post, number = build_post(info, new_keys)
+        send_post(post)
+        save_post_number(number)
+        
+        log("=== Готово ===")
+    except Exception as e:
+        log(f"КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        raise
 
-    sub_url = None
-    entry_with_sub = None
-    for entry in feed.entries:
-        text = entry.get('summary', entry.get('title', ''))
-        match = re.search(r'https?://\S+/kvn/\S+', text)
-        if match:
-            sub_url = match.group(0)
-            entry_with_sub = entry
-            break
+# =====================
+# ЗАПУСК
+# =====================
 
-    if not sub_url:
-        print('❌ Пост с сабкой не найден.')
-        return
-
-    # 2. Скачиваем страницу сабки
-    print(f'🤖 Скачиваю сабку: {sub_url}')
-    resp = requests.get(sub_url, verify=False, timeout=30)
-    if resp.status_code != 200:
-        print(f'❌ Ошибка скачивания: {resp.status_code}')
-        return
-
-    # 3. Ищем ключи
-    soup = BeautifulSoup(resp.text, 'html.parser')
-    copy_btn = soup.find('button', string=re.compile(r'копировать все конфигурации', re.I))
-    if copy_btn:
-        parent = copy_btn.find_parent()
-        keys_raw = re.findall(r'(vless|hysteria2)://[^\s#"]+', parent.get_text())
-    else:
-        keys_raw = re.findall(r'(vless|hysteria2)://[^\s#"]+', resp.text)
-
-    if not keys_raw:
-        try:
-            decoded = base64.b64decode(resp.text).decode('utf-8', errors='ignore')
-            keys_raw = re.findall(r'(vless|hysteria2)://[^\s#"]+', decoded)
-        except:
-            pass
-
-    if not keys_raw:
-        print('❌ Ключи не найдены.')
-        return
-
-    print(f'✅ Найдено ключей: {len(keys_raw)}')
-
-    # 4. Определяем дату
-    date_match = re.search(r'до (\d{2}\.\d{2})', entry_with_sub.get('title', ''))
-    date = date_match.group(1) if date_match else '01.01'
-
-    # 5. Пересобираем ключи
-    new_keys = []
-    for key in keys_raw:
-        clean_key = key.split('#')[0]
-        proto = detect_proto(clean_key)
-        comment = build_rizzy_comment(proto, date)
-        new_keys.append(clean_key + '#' + comment)
-
-    content = '\n'.join(new_keys)
-    with open(FILE, 'w') as f:
-        f.write(content)
-
-    # 6. Обновляем GitHub
-    token = os.environ['GH_TOKEN']
-    headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'}
-    url = f'https://api.github.com/repos/rizzyprotogen/RizzyVPN-t.me-RizzyVPN/contents/{FILE}'
-    resp = requests.get(url, headers=headers)
-    if resp.status_code != 200:
-        print(f'❌ Ошибка доступа к GitHub: {resp.status_code}')
-        return
-    sha = resp.json()['sha']
-    data = {
-        'message': f'Update keys to {date}',
-        'content': base64.b64encode(content.encode()).decode(),
-        'sha': sha
-    }
-    update = requests.put(url, headers=headers, json=data)
-    if update.status_code == 200:
-        print('✅ Файл обновлён на GitHub!')
-    else:
-        print(f'❌ Ошибка обновления: {update.status_code}')
-        return
-
-    # 7. Публикуем пост
-    issue = get_next_issue()
-    protos = set()
-    for k in new_keys:
-        protos.add(detect_proto(k))
-    protos_str = ', '.join(sorted(protos))
-
-    text = f'<b>Rizzy конфигурация #VPN</b>\n\n'
-    text += f'🔑 Публичная сабка #{issue} до {date}\n\n'
-    text += f'По вопросам писать @famchilli_bot. Помогаю бесплатно!\n\n'
-    text += f'🌎 Локация: {COUNTRY_NAME} [{protos_str}]\n'
-    text += f'⚡️ Протоколы: {protos_str}\n'
-    text += f'ℹ️ Общий лимит 3 ТБ, без ограничений по устройствам\n\n'
-    text += f'📎 Сабка:\n<code>https://raw.githubusercontent.com/rizzyprotogen/RizzyVPN-t.me-RizzyVPN/main/RizzyVPN-Free.txt#{ANCHOR}</code>\n\n'
-    text += f'Поддержи проект:\n❤️ Поставь сердечко.\n📢 Перешли ключ друзьям.'
-
-    url = f'https://api.telegram.org/bot{PUB_TOKEN}/sendMessage'
-    payload = {
-        'chat_id': CHANNEL,
-        'text': text,
-        'parse_mode': 'HTML',
-        'disable_web_page_preview': True
-    }
-    resp = requests.post(url, json=payload)
-    if resp.status_code == 200:
-        print('✅ Пост опубликован в канале!')
-    else:
-        print(f'❌ Ошибка публикации: {resp.status_code} {resp.text}')
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
