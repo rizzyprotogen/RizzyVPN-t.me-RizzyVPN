@@ -1,3 +1,4 @@
+# RizzyVPN Auto - СТИЛЬ RIZZY
 import requests
 import base64
 import os
@@ -19,7 +20,6 @@ FILE = "RizzyVPN-Free.txt"
 CHANNEL = "@RizzyVPN"
 COUNTER_FILE = "counter.txt"
 
-# RSSHub + запасной парсинг
 RSS_FEED_URL = "https://rsshub.app/telegram/channel/freekvn"
 FALLBACK_URL = "https://t.me/s/freekvn"
 
@@ -71,12 +71,11 @@ def clean_key(key):
 # =====================
 
 def get_subscription_url():
-    # 1️⃣ Пробуем RSSHub
     log("Пробуем RSSHub...")
     try:
         feed = feedparser.parse(RSS_FEED_URL)
         if feed.entries:
-            for entry in feed.entries[:1]:  # Берём последний пост
+            for entry in feed.entries[:1]:
                 text = entry.get("summary", "") + " " + entry.get("title", "")
                 links = re.findall(r"https?://[^\s\"<>]+", text)
                 for url in links:
@@ -86,7 +85,6 @@ def get_subscription_url():
     except Exception as e:
         log(f"⚠️ RSSHub не работает: {e}")
 
-    # 2️⃣ Запасной вариант: парсим t.me/s/freekvn
     log("Пробуем парсинг t.me/s/freekvn...")
     try:
         html = requests.get(FALLBACK_URL, timeout=30).text
@@ -98,7 +96,6 @@ def get_subscription_url():
     except Exception as e:
         log(f"⚠️ Парсинг не удался: {e}")
 
-    # 3️⃣ Всё сломалось
     raise Exception("Не удалось получить ссылку на сабку")
 
 # =====================
@@ -179,42 +176,6 @@ def get_protocols(keys):
     return ", ".join(sorted(protocols))
 
 # =====================
-# ЧТЕНИЕ ИНФОРМАЦИИ ИЗ ПОСТА
-# =====================
-
-def parse_post_info(post_info):
-    result = {
-        "title": "🔑 Публичная сабка",
-        "contact": "",
-        "location": "",
-        "limit": ""
-    }
-    
-    post_info = re.sub(r"<br\s*/?>", "\n", post_info)
-    
-    match = re.search(r"(🔑.*?)(?=\n|🌎|По вопросам)", post_info)
-    if match:
-        title = match.group(1).strip()
-        title = re.sub(r"\s*#\d+", "", title)
-        result["title"] = title
-    
-    match = re.search(r"По вопросам.*?(?=\n|🌎|$)", post_info)
-    if match:
-        contact = match.group(0).strip()
-        contact = re.sub(r"@\w+https?://[^)]+", "@RizzyVPN", contact)
-        result["contact"] = contact
-    
-    match = re.search(r"🌎\s*(?:\S+\s+)?(.+?)(?=\s+с протоколами|\n|$)", post_info)
-    if match:
-        result["location"] = match.group(1).strip()
-    
-    match = re.search(r"Общий лимит.*?(?=\n|$)", post_info)
-    if match:
-        result["limit"] = match.group(0).strip()
-    
-    return result
-
-# =====================
 # СЧЁТЧИК ПОСТОВ
 # =====================
 
@@ -230,58 +191,6 @@ def get_post_number():
 def save_post_number(number):
     with open(COUNTER_FILE, "w") as f:
         f.write(str(number))
-
-# =====================
-# СОЗДАНИЕ ПОСТА
-# =====================
-
-def build_post(info, keys):
-    number = get_post_number() + 1
-    protocols = get_protocols(keys)
-    
-    text = f"""
-{info["title"]}
-
-🌎 {info["location"]}
-
-🇵🇱 Страна: {COUNTRY_NAME}
-
-⚡ Протоколы: {protocols}
-
-📦 Серверов: {len(keys)}
-
-{info["limit"]}
-
-{info["contact"]}
-
-📅 Обновлено: {datetime.now().strftime("%d.%m.%Y")}
-
-⬇️ Скачать VPN:
-https://t.me/{CHANNEL.replace("@", "")}
-
-#{number}
-"""
-    return text.strip(), number
-
-# =====================
-# ОТПРАВКА В TELEGRAM
-# =====================
-
-def send_post(text):
-    log("Отправляем пост...")
-    url = f"https://api.telegram.org/bot{PUB_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHANNEL,
-        "text": text,
-        "disable_web_page_preview": True
-    }
-    try:
-        response = requests.post(url, data=data, timeout=30)
-        response.raise_for_status()
-        log("Пост отправлен")
-    except Exception as e:
-        log(f"Ошибка отправки: {e}")
-        raise
 
 # =====================
 # ГЕНЕРАЦИЯ RSS ФИДА (feed.xml)
@@ -323,21 +232,56 @@ def main():
         keys = extract_keys(raw)
         new_keys = build_subscription(keys)
         save_subscription(new_keys)
-        generate_feed(new_keys)  # <-- Обновляем feed.xml
+        generate_feed(new_keys)
         
-        if entry:
-            post_info = entry.get("summary", "") + "\n" + entry.get("title", "")
-        else:
-            post_info = ""
+        # ========================================
+        # ПОСТ В СТИЛЕ RIZZY (ТВОЙ ВАРИАНТ)
+        # ========================================
+        number = get_post_number() + 1
+        protocols = get_protocols(new_keys)
         
-        info = parse_post_info(post_info)
-        post, number = build_post(info, new_keys)
-        send_post(post)
+        text = f"""
+Rizzy конфигурация #VPN
+
+🔑Публичная сабка до 7.08, либо до исчерпания трафика. #{number}
+
+По вопросам писать @EmbroKVN. Помогаю бесплатно!
+
+🌎 Локация: Польша
+⚡️ Протоколы: {protocols}
+
+📎 Сабка:
+https://raw.githubusercontent.com/rizzyprotogen/RizzyVPN-t.me-RizzyVPN/main/RizzyVPN-Free.txt#%D0%91%D0%95%D0%A1%D0%9F%D0%9B%D0%90%D0%A2%D0%9D%D0%AB%D0%99%20VPN%20%D0%92%20t.me%2FRizzyVPN
+
+❤️ Поставь сердечко.
+📢 Перешли ключ друзьям.
+"""
+        send_post(text.strip())
         save_post_number(number)
         
         log("=== Готово ===")
     except Exception as e:
         log(f"КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        raise
+
+# =====================
+# ОТПРАВКА В TELEGRAM
+# =====================
+
+def send_post(text):
+    log("Отправляем пост...")
+    url = f"https://api.telegram.org/bot{PUB_TOKEN}/sendMessage"
+    data = {
+        "chat_id": CHANNEL,
+        "text": text,
+        "disable_web_page_preview": True
+    }
+    try:
+        response = requests.post(url, data=data, timeout=30)
+        response.raise_for_status()
+        log("Пост отправлен")
+    except Exception as e:
+        log(f"Ошибка отправки: {e}")
         raise
 
 # =====================
