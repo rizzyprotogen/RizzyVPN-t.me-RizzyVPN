@@ -1,0 +1,27 @@
+name: Generate RSS
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Каждый час
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        run: sudo apt-get install -y python3 python3-pip
+
+      - name: Run RSS generator
+        run: python3 .github/workflows/generate_rss.py
+
+      - name: Commit RSS
+        run: |
+          git config user.name "RizzyVPN Bot"
+          git config user.email "bot@rizzyvpn.t.me"
+          git add feed.xml
+          git diff --staged --quiet || git commit -m "Автообновление RSS"
+          git push
